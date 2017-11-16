@@ -5,7 +5,6 @@ Param(
   $TargerUser
 )
 
-
 if ( !(Get-PSSnapin Microsoft.Exchange.Management.PowerShell.SnapIn -ErrorAction SilentlyContinue) ){
     Add-PSSnapin Microsoft.Exchange.Management.PowerShell.SnapIn
 }
@@ -49,7 +48,6 @@ $Mailbox | Select-Object ExchangeGuid, `
 $Mailbox | Disable-Mailbox -DomainController $DCHostName;
 Write-Output "Mailbox Disabled";
 
-
 $i=0;
 do{
     Write-Output "Try Update-StoreMailboxState -Database $DataBase -Identity $($Mailbox.ExchangeGuid)";
@@ -65,11 +63,18 @@ if(!$Disconnected){
     Break;
 }
 
-$EmailAddresses = $Mailbox.EmailAddresses;
-$Mailbox.EmailAddresses | ?{ $_.Prefix -notlike "SMTP"} | %{ $EmailAddresses.Remove($_) }
 
 Connect-Mailbox $Mailbox.ExchangeGuid -Database $DataBase -DomainController $DCHostName -User $Targer.DistinguishedName -Alias $Mailbox.Alias;
-#$Targer | Set-Mailbox -DomainController $DCHostName -EmailAddressPolicyEnabled $Mailbox.EmailAddressPolicyEnabled -EmailAddresses $EmailAddresses;
+
+$TargerMailbox =  $Targer | Get-Mailbox -DomainController $DCHostName;
+$EmailAddresses = $TargerMailbox.EmailAddresses;
+$Mailbox.EmailAddresses | ?{ $_.Prefix -like "SMTP"} | %{ $EmailAddresses.Add($_) }
+
+if($TargerMailbox.PrimarySMTPAddress -ne $Mailbox.PrimarySMTPAddress){
+    $EmailAddresses.Remove($TargerMailbox.PrimarySMTPAddress);
+
+}
+$Targer | Set-Mailbox -DomainController $DCHostName -EmailAddressPolicyEnabled $Mailbox.EmailAddressPolicyEnabled -PrimarySMTPAddress $Mailbox.PrimarySMTPAddress -EmailAddresses $EmailAddresses;
 
 if(($Targer | Get-Mailbox -DomainController $DCHostName).RecipientType -eq "UserMailbox"){
     Write-Output "Mailbox reconnected successfully";
