@@ -67,6 +67,7 @@ Connect-Mailbox $Mailbox.ExchangeGuid -Database $DataBase -DomainController $DCH
 
 $TargerMailbox =  $Targer | Get-Mailbox -DomainController $DCHostName;
 $EmailAddresses = $TargerMailbox.EmailAddresses;
+$TargerMailbox.EmailAddresses | ?{ $_.Prefix -like "SMTP"} | %{ $EmailAddresses.Remove($_) }
 $Mailbox.EmailAddresses | ?{ $_.Prefix -like "SMTP"} | %{ $EmailAddresses.Add($_) }
 
 if($TargerMailbox.PrimarySMTPAddress -ne $Mailbox.PrimarySMTPAddress){
