@@ -43,7 +43,7 @@ $Mailbox | Select-Object ExchangeGuid, `
                 Database,
                 @{ n="Server"; e={$Server.Name}}, `
                 @{ n="DCHostName"; e={$DCHostName}} `
-                | fl
+                | fl;
 
 $Mailbox | Disable-Mailbox -DomainController $DCHostName;
 Write-Output "Mailbox Disabled";
@@ -63,7 +63,6 @@ if(!$Disconnected){
     Break;
 }
 
-
 Connect-Mailbox $Mailbox.ExchangeGuid -Database $DataBase -DomainController $DCHostName -User $Targer.DistinguishedName -Alias $Mailbox.Alias;
 
 $TargerMailbox =  $Targer | Get-Mailbox -DomainController $DCHostName;
@@ -72,9 +71,10 @@ $Mailbox.EmailAddresses | ?{ $_.Prefix -like "SMTP"} | %{ $EmailAddresses.Add($_
 
 if($TargerMailbox.PrimarySMTPAddress -ne $Mailbox.PrimarySMTPAddress){
     $EmailAddresses.Remove($TargerMailbox.PrimarySMTPAddress);
-
 }
-$Targer | Set-Mailbox -DomainController $DCHostName -EmailAddressPolicyEnabled $Mailbox.EmailAddressPolicyEnabled -PrimarySMTPAddress $Mailbox.PrimarySMTPAddress -EmailAddresses $EmailAddresses;
+
+$Targer | Set-Mailbox -DomainController $DCHostName -EmailAddressPolicyEnabled $Mailbox.EmailAddressPolicyEnabled;
+$Targer | Set-Mailbox -DomainController $DCHostName -PrimarySMTPAddress $Mailbox.PrimarySMTPAddress -EmailAddresses $EmailAddresses;
 
 if(($Targer | Get-Mailbox -DomainController $DCHostName).RecipientType -eq "UserMailbox"){
     Write-Output "Mailbox reconnected successfully";
