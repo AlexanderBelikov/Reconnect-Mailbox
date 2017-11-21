@@ -65,17 +65,15 @@ if(!$Disconnected){
 
 Connect-Mailbox $Mailbox.ExchangeGuid -Database $DataBase -DomainController $DCHostName -User $Targer.DistinguishedName -Alias $Mailbox.Alias;
 
+$Targer | Set-Mailbox -DomainController $DCHostName -EmailAddressPolicyEnabled $Mailbox.EmailAddressPolicyEnabled;
+$Targer | Set-Mailbox -DomainController $DCHostName -PrimarySMTPAddress $Mailbox.PrimarySMTPAddress;
+
 $TargerMailbox =  $Targer | Get-Mailbox -DomainController $DCHostName;
 $EmailAddresses = $TargerMailbox.EmailAddresses;
-$TargerMailbox.EmailAddresses | ?{ $_.Prefix -like "SMTP"} | %{ $EmailAddresses.Remove($_) }
-$Mailbox.EmailAddresses | ?{ $_.Prefix -like "SMTP"} | %{ $EmailAddresses.Add($_) }
+$TargerMailbox.EmailAddresses | ?{ $_.PrefixString -ceq "smtp" } | %{ $EmailAddresses.Remove($_) | Out-Null }
+$Mailbox.EmailAddresses | ?{ $_.PrefixString -ceq "smtp" } | %{ $EmailAddresses.Add($_) }
 
-if($TargerMailbox.PrimarySMTPAddress -ne $Mailbox.PrimarySMTPAddress){
-    $EmailAddresses.Remove($TargerMailbox.PrimarySMTPAddress);
-}
-
-$Targer | Set-Mailbox -DomainController $DCHostName -EmailAddressPolicyEnabled $Mailbox.EmailAddressPolicyEnabled;
-$Targer | Set-Mailbox -DomainController $DCHostName -PrimarySMTPAddress $Mailbox.PrimarySMTPAddress -EmailAddresses $EmailAddresses;
+$Targer | Set-Mailbox -DomainController $DCHostName -EmailAddresses $Mailbox.EmailAddresses;
 
 if(($Targer | Get-Mailbox -DomainController $DCHostName).RecipientType -eq "UserMailbox"){
     Write-Output "Mailbox reconnected successfully";
