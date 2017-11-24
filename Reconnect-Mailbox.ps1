@@ -69,9 +69,9 @@ $Targer | Set-Mailbox -DomainController $DCHostName -EmailAddressPolicyEnabled $
 $Targer | Set-Mailbox -DomainController $DCHostName -PrimarySMTPAddress $Mailbox.PrimarySMTPAddress;
 
 $TargerMailbox =  $Targer | Get-Mailbox -DomainController $DCHostName;
-$EmailAddresses = $TargerMailbox.EmailAddresses;
-$TargerMailbox.EmailAddresses | ?{ $_.PrefixString -ceq "smtp" } | %{ $EmailAddresses.Remove($_) | Out-Null }
-$Mailbox.EmailAddresses | ?{ $_.PrefixString -ceq "smtp" } | %{ $EmailAddresses.Add($_) }
+$EmailAddresses = $TargerMailbox.EmailAddresses | ?{ $_.PrefixString -ceq "smtp" } | Select-Object ProxyAddressString;
+$EmailAddresses.ProxyAddressString | %{ $TargerMailbox.EmailAddresses.Remove($_) }
+$Mailbox.EmailAddresses | ?{ $_.PrefixString -ceq "smtp" } | %{ $TargerMailbox.EmailAddresses.Add($_) }
 
 $Targer | Set-Mailbox -DomainController $DCHostName -EmailAddresses $Mailbox.EmailAddresses;
 
