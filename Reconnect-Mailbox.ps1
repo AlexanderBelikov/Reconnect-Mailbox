@@ -9,6 +9,7 @@ if ( !(Get-PSSnapin Microsoft.Exchange.Management.PowerShell.SnapIn -ErrorAction
     Add-PSSnapin Microsoft.Exchange.Management.PowerShell.SnapIn
 }
 
+#Check SourceUser with UserMailbox 
 $Source = Get-User $SourceUser -ErrorAction "SilentlyContinue";
 if( -not($Source) -or ($Source.gettype().Name -ne "User") ){
     Write-Warning "SourceUser $SourceUser is not User type"
@@ -21,7 +22,13 @@ if( $Source.RecipientType -ne "UserMailbox" ){
     Break;
 }
 
-$Targer = Get-User $TargerUser -ErrorAction "SilentlyContinue";
+$Mailbox = $Source | Get-Mailbox;
+$DataBase = $Mailbox.Database;
+$Server = Get-ExchangeServer (Get-MailboxDatabase $DataBase).Server;
+$DCHostName = (Get-ADDomainController -Discover -ForceDiscover -SiteName (Get-ADSite (Get-ExchangeServer $Server).Site).Name).HostName[0]
+
+#Check TargerUser is enabled and not UserMailbox 
+$Targer = Get-User $TargerUser -DomainController $DCHostName -ErrorAction "SilentlyContinue";
 if( -not($Targer) -or ($Targer.gettype().Name -ne "User") ){
     Write-Warning "TargerUser $TargerUser is not User type"
     Write-Warning "Aborting script..."
@@ -33,10 +40,6 @@ if( -not($Targer.RecipientType -eq "User" -and $Targer.RecipientTypeDetails -eq 
     Break;
 }
 
-$Mailbox = $Source | Get-Mailbox;
-$DataBase = $Mailbox.Database;
-$Server = Get-ExchangeServer (Get-MailboxDatabase $DataBase).Server;
-$DCHostName = (Get-ADDomainController -Discover -ForceDiscover -SiteName (Get-ADSite (Get-ExchangeServer $Server).Site).Name).HostName[0]
 $Mailbox | Select-Object ExchangeGuid, `
                 PrimarySmtpAddress, `
                 @{ n="EmailAddresses"; e={($_.EmailAddresses | ?{ $_.Prefix -like "SMTP"}).ProxyAddressString}}, `
@@ -45,6 +48,7 @@ $Mailbox | Select-Object ExchangeGuid, `
                 @{ n="DCHostName"; e={$DCHostName}} `
                 | fl;
 
+#Disable mailbox and Update
 $Mailbox | Disable-Mailbox -DomainController $DCHostName;
 Write-Output "Mailbox Disabled";
 
@@ -63,6 +67,7 @@ if(!$Disconnected){
     Break;
 }
 
+#Connect mailbox and set emailaddresses
 Connect-Mailbox $Mailbox.ExchangeGuid -Database $DataBase -DomainController $DCHostName -User $Targer.DistinguishedName -Alias $Mailbox.Alias;
 
 $Targer | Set-Mailbox -DomainController $DCHostName -EmailAddressPolicyEnabled $Mailbox.EmailAddressPolicyEnabled;
@@ -70,7 +75,7 @@ $Targer | Set-Mailbox -DomainController $DCHostName -PrimarySMTPAddress $Mailbox
 
 $TargerMailbox =  $Targer | Get-Mailbox -DomainController $DCHostName;
 $EmailAddresses = $TargerMailbox.EmailAddresses | ?{ $_.PrefixString -ceq "smtp" } | Select-Object ProxyAddressString;
-$EmailAddresses.ProxyAddressString | %{ $TargerMailbox.EmailAddresses.Remove($_) }
+$EmailAddresses.ProxyAddressString | %{ $TargerMailbox.EmailAddresses.Remove($_) | Out-Null }
 $Mailbox.EmailAddresses | ?{ $_.PrefixString -ceq "smtp" } | %{ $TargerMailbox.EmailAddresses.Add($_) }
 
 $Targer | Set-Mailbox -DomainController $DCHostName -EmailAddresses $Mailbox.EmailAddresses;
